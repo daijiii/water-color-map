@@ -22,7 +22,6 @@
         padding: 10px;
         border-radius: 5px;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        width: 150px
       }
 
       #controls2 {
@@ -33,7 +32,6 @@
         background: white;
         padding: 10px;
         border-radius: 5px;
-        width: 100px
       }
 
       #controls2 input[type="text"] {
@@ -115,7 +113,7 @@
       let drawing = false;
       let marker = null;
       let infoWindow=[];
-      let initialSet=false
+      let initialSet= false;
 
       function initMap() {
         const mapOptions = {
@@ -319,17 +317,7 @@
         infoWindows.push(infoWindow);
       }
 
-      document.getElementById('startButton').addEventListener('click', () => {
-          drawing = true;
-          path = [];
-        });
-
-        document.getElementById('stopButton').addEventListener('click', () => {
-          drawing = false;
-        });
-
-       
-        if (navigator.geolocation) {
+      if (navigator.geolocation) {
           const geoOptions = {
             enableHighAccuracy: true,
             maximumAge: 0,
@@ -352,8 +340,10 @@
               marker.setPosition(pos);
             }
 
-            map.setCenter(pos);
-
+            if (!initialSet) {
+    map.setCenter(pos);
+    initialSet = true;  // Set the flag to true after setting center initially
+  }
             if (drawing) {
               addWatercolorMarker(pos);
             }
