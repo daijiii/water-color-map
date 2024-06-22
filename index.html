@@ -40,7 +40,7 @@
         padding: 10px 20px;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         display: inline-block;
-        max-width: 200px; /* 吹き出しの最大幅を設定 */
+        max-width: 1000px; /* 吹き出しの最大幅を設定 */
         text-align: center; /* テキストを中央揃え */
       }
       .cloud-bubble:after {
@@ -344,6 +344,11 @@
   alert("GPSの取得に失敗しました: " + errorMessage);
         }
 )};
+
+       if (drawing) {
+    addWatercolorMarker(pos);
+    drawWatercolorPolyline();
+  }
         
 
         document.getElementById('startButton').addEventListener('click', () => {
