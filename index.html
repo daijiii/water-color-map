@@ -21,6 +21,7 @@
         padding: 10px;
         border-radius: 5px;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+         width: calc(20%); 
       }
 
       #controls2 {
@@ -31,6 +32,7 @@
         background: white;
         padding: 10px;
         border-radius: 5px;
+         width: calc(20%); 
       }
       .cloud-bubble {
         position: relative;
@@ -77,6 +79,13 @@
     font-size: 12px;  /* テキストのフォントサイズを16pxに設定 */
     margin-top: 5px;  /* ボタン間のマージン（上）を10pxに設定 */
   }
+
+       @media (min-width: 600px) {
+            .controls {
+                max-width: 300px; /* 画面が大きいときはコントロールの最大幅を制限 */
+                right: 10px;
+                left: auto;
+            }
     </style>
   </head>
   <body>
