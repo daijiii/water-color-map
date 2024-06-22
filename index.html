@@ -326,6 +326,7 @@
           drawing = false;
         });
 
+       
         if (navigator.geolocation) {
           const geoOptions = {
             enableHighAccuracy: true,
@@ -349,26 +350,25 @@
               marker.setPosition(pos);
             }
 
-           
-            if (!initialSet) {
-    map.setCenter(pos);
-    initialSet = true;  // Set the flag to true after setting center initially
-  }
-  }, (error) => {
-  const errorMessage = error.message;
-  console.error("GPSの取得に失敗しました: ", errorMessage);
-  alert("GPSの取得に失敗しました: " + errorMessage);
+            map.setCenter(pos);
+
+            if (drawing) {
+              addWatercolorMarker(pos);
+            }
+          }, (error) => {
+            console.error("GPSの取得に失敗しました: ", error.message);
+            alert("GPSの取得に失敗しました: " + error.message);
+          }, geoOptions);
         }
-)};
-        
 
-        
+        document.getElementById('startButton').addEventListener('click', () => {
+          path = [];
+          drawing = true;
+        });
 
-        if (drawing) {
-    addWatercolorMarker(pos);
-    drawWatercolorPolyline();
-  }
-
+        document.getElementById('stopButton').addEventListener('click', () => {
+          drawing = false;
+        });
 
       function addWatercolorMarker(location) {
         const color = document.getElementById('color').value;
