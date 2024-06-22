@@ -4,7 +4,7 @@
     <title>Watercolor Map Markers</title>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBdwyyX_C68If8L3fkyJT2DKaAMkZlKdhk&callback=initMap" async defer></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
+   <style>
       #map {
         height: 90%;
       }
@@ -22,8 +22,6 @@
         padding: 10px;
         border-radius: 5px;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        width: 20%;
-         
       }
 
       #controls2 {
@@ -34,8 +32,6 @@
         background: white;
         padding: 10px;
         border-radius: 5px;
-        with: 20%
-         
       }
 
       #controls2 input[type="text"] {
@@ -50,7 +46,7 @@
         padding: 10px 20px;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         display: inline-block;
-        max-width: 1000px; /* 吹き出しの最大幅を設定 */
+        max-width: 200px; /* 吹き出しの最大幅を設定 */
         text-align: center; /* テキストを中央揃え */
       }
       .cloud-bubble:after {
@@ -87,8 +83,6 @@
     font-size: 12px;  /* テキストのフォントサイズを16pxに設定 */
     margin-top: 5px;  /* ボタン間のマージン（上）を10pxに設定 */
   }
-
-      
     </style>
   </head>
   <body>
@@ -323,6 +317,15 @@
         infoWindows.push(infoWindow);
       }
 
+      document.getElementById('startButton').addEventListener('click', () => {
+          drawing = true;
+          path = [];
+        });
+
+        document.getElementById('stopButton').addEventListener('click', () => {
+          drawing = false;
+        });
+
         if (navigator.geolocation) {
           const geoOptions = {
             enableHighAccuracy: true,
@@ -346,6 +349,7 @@
               marker.setPosition(pos);
             }
 
+           
             if (!initialSet) {
     map.setCenter(pos);
     initialSet = true;  // Set the flag to true after setting center initially
@@ -356,23 +360,15 @@
   alert("GPSの取得に失敗しました: " + errorMessage);
         }
 )};
-
-      
         
 
-        document.getElementById('startButton').addEventListener('click', () => {
-          path = [];
-          drawing = true;
-        });
+        
 
-        document.getElementById('stopButton').addEventListener('click', () => {
-          drawing = false;
-        });
-
-       if (drawing) {
+        if (drawing) {
     addWatercolorMarker(pos);
     drawWatercolorPolyline();
   }
+
 
       function addWatercolorMarker(location) {
         const color = document.getElementById('color').value;
