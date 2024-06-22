@@ -3,7 +3,7 @@
   <head>
     <title>Watercolor Map Markers</title>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBdwyyX_C68If8L3fkyJT2DKaAMkZlKdhk&callback=initMap" async defer></script>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
    <style>
       #map {
         height: 90%;
@@ -33,6 +33,10 @@
         padding: 10px;
         border-radius: 5px;
       }
+
+      input[type="text"], select {
+  font-size: 16px; /* モバイルブラウザでの自動ズームを防ぐための最小フォントサイズ */
+}
 
       #controls2 input[type="text"] {
   width: 100%;  /* 入力ボックスの幅をコントロール領域に合わせて100%に設定 */
