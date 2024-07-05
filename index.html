@@ -1,577 +1,262 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Watercolor Map Markers</title>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyArQxBFmJzHZCn7I9D69rfpBHxaA3oSXGo&callback=initMap" async defer></script>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <style>
-    #map {
-      height: 90%;
-    }
-    html, body {
-      height: 100%;
-      margin: 0;
-      padding: 0;
-    }
-    #controls {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      z-index: 5;
-      background: white;
-      padding: 10px;
-      border-radius: 5px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    }
-    #controls2 {
-      position: fixed;
-      bottom: 10px;
-      right: 10px;
-      z-index: 5;
-      background: white;
-      padding: 10px;
-      border-radius: 5px;
-    }
-    input[type="text"], select {
-      font-size: 16px; /* モバイルブラウザでの自動ズームを防ぐための最小フォントサイズ */
-    }
-    #controls2 input[type="text"] {
-      width: 100%;  /* 入力ボックスの幅をコントロール領域に合わせて100%に設定 */
-      max-width: 300px;  /* 最大幅を300pxに設定 */
-    }
-    .cloud-bubble {
-      position: relative;
-      background: #fff;
-      border: 2px solid #000;
-      border-radius: 50%;
-      padding: 10px 20px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      display: inline-block;
-      max-width: 200px; /* 吹き出しの最大幅を設定 */
-      text-align: center; /* テキストを中央揃え */
-    }
-    .cloud-bubble:after {
-      content: '';
-      position: absolute;
-      bottom: -20px;
-      left: 50%;
-      margin-left: -20px;
-    }
-    .gm-style-iw {
-      width: auto !important;
-      top: 0 !important;
-      left: 0 !important;
-      background: transparent !important;
-      border: none !important;
-      box-shadow: none !important;
-    }
-    .gm-style-iw-d {
-      overflow: visible !important;
-    }
-    .gm-style-iw-c {
-      padding: 0 !important;
-    }
-    .gm-style .gm-style-iw-t::後 {
-      display: none;
-    }
-    #controls button {
-      width: 70px;  /* ボタンの幅を100pxに設定 */
-      height: 30px;  /* ボタンの高さを50pxに設定 */
-      font-size: 12px;  /* テキストのフォントサイズを16pxに設定 */
-      margin-top: 5px;  /* ボタン間のマージン（上）を10pxに設定 */
-    }
-  </style>
+    <title>Google Map Drawing with Handwriting</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBdwyyX_C68If8L3fkyJT2DKaAMkZlKdhk&libraries=drawing"></script>
+    <style>
+        #map {
+            height: 500px;
+            width: 100%;
+            position: relative;
+        }
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            pointer-events: none; /* Default to ignore events */
+        }
+        #controls {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1001;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #color-picker {
+            width: 30px;
+            height: 30px;
+            border: none;
+            padding: 0;
+        }
+
+        #line-width {
+            width: 40px;
+        }
+
+        #directions-inputs {
+            margin-top: 10px;
+        }
+
+        #directions-inputs input {
+            margin: 5px 0;
+            padding: 5px;
+            width: calc(100% - 10px);
+        }
+
+        #directions-inputs button {
+            padding: 5px;
+            width: 100%;
+        }
+    </style>
 </head>
-<body onload="loadData()">
-  <div id="controls">
-    <label for="color">Choose a color:</label>
-    <select id="color">
-      <option value="rgba(0, 128, 255, 0.5)">Blue</option>
-      <option value="rgba(255, 0, 0, 0.5)">Red</option>
-      <option value="rgba(0, 255, 0, 0.5)">Green</option>
-      <option value="rgba(255, 255, 0, 0.5)">Yellow</option>
-      <option value="rgba(255, 0, 255, 0.5)">Magenta</option>
-      <option value="rgba(0, 255, 255, 0.5)">Cyan</option>
-    </select>
-    <br>
-    <button id="startButton">Start</button>
-    <button id="stopButton">Stop</button>
-    <div id="penTools" style="display: none;">
-      <button onclick="startDrawing()">Start Drawing</button>
-      <button onclick="changeColor('black')">Black</button>
-      <button onclick="changeColor('red')">Red</button>
-      <button onclick="changeColor('blue')">Blue</button>
-      <button onclick="eraseDrawing()">Erase</button>
-      <button onclick="downloadPDF()">Download PDF</button>
-    </div>
-  </div>
-  <div id="controls2">
-    <label for="comment">Enter comment:</label>
-    <input type="text" id="comment">
-  </div>
-  <div id="map"></div>
-  <script>
-    let map;
-    let path = [];
-    let drawing = false;
-    let marker = null;
-    let infoWindows = [];
-    let initialSet = false;
-
-    // IndexedDBの初期化
-    let db;
-    const request = indexedDB.open('MapData', 1);
-
-    request.onupgradeneeded = function(event) {
-      db = event.target.result;
-      const objectStore = db.createObjectStore('paths', { keyPath: 'id', autoIncrement: true });
-      objectStore.createIndex('path', 'path', { unique: false });
-      objectStore.createIndex('infoWindows', 'infoWindows', { unique: false });
-    };
-
-    request.onsuccess = function(event) {
-      db = event.target.result;
-      loadData(); // データベースの準備ができたらデータを読み込む
-    };
-
-    request.onerror = function(event) {
-      console.error('Database error: ' + event.target.errorCode);
-    };
-
-    function initMap() {
-      const mapOptions = {
-        center: { lat: 35.6812, lng: 139.7671 },
-        zoom: 15,
-        mapTypeId: google.maps.MapTypeId.SATELLITE,
-        styles: [
-          {
-            "elementType": "geometry",
-            "stylers": [
-              {
-                "color": "#f5f5f5"
-              }
-            ]
-          },
-          {
-            "elementType": "labels.icon",
-            "stylers": [
-              {
-                "visibility": "off"
-              }
-            ]
-          },
-          {
-            "elementType": "labels.text.fill",
-            "stylers": [
-              {
-                "color": "#616161"
-              }
-            ]
-          },
-          {
-            "elementType": "labels.text.stroke",
-            "stylers": [
-              {
-                "color": "#f5f5f5"
-              }
-            ]
-          },
-          {
-            "featureType": "administrative.land_parcel",
-            "elementType": "labels.text.fill",
-            "stylers": [
-              {
-                "color": "#bdbdbd"
-              }
-            ]
-          },
-          {
-            "featureType": "poi",
-            "elementType": "geometry",
-            "stylers": [
-              {
-                "color": "#eeeeee"
-              }
-            ]
-          },
-          {
-            "featureType": "poi",
-            "elementType": "labels.text.fill",
-            "stylers": [
-              {
-                "color": "#757575"
-              }
-            ]
-          },
-          {
-            "featureType": "poi.park",
-            "elementType": "geometry",
-            "stylers": [
-              {
-                "color": "#e5e5e5"
-              }
-            ]
-          },
-          {
-            "featureType": "poi.park",
-            "elementType": "labels.text.fill",
-            "stylers": [
-              {
-                "color": "#9e9e9e"
-              }
-            ]
-          },
-          {
-            "featureType": "road",
-            "elementType": "geometry",
-            "stylers": [
-              {
-                "color": "#ffffff"
-              }
-            ]
-          },
-          {
-            "featureType": "road.arterial",
-            "elementType": "labels.text.fill",
-            "stylers": [
-              {
-                "color": "#757575"
-              }
-            ]
-          },
-          {
-            "featureType": "road.highway",
-            "elementType": "geometry",
-            "stylers": [
-              {
-                "color": "#dadada"
-              }
-            ]
-          },
-          {
-            "featureType": "road.highway",
-            "elementType": "labels.text.fill",
-            "stylers": [
-              {
-                "color": "#616161"
-              }
-            ]
-          },
-          {
-            "featureType": "road.local",
-            "elementType": "labels.text.fill",
-            "stylers": [
-              {
-                "color": "#9e9e9e"
-              }
-            ]
-          },
-          {
-            "featureType": "transit.line",
-            "elementType": "geometry",
-            "stylers": [
-              {
-                "color": "#e5e5e5"
-              }
-            ]
-          },
-          {
-            "featureType": "transit.station",
-            "elementType": "geometry",
-            "stylers": [
-              {
-                "color": "#eeeeee"
-              }
-            ]
-          },
-          {
-            "featureType": "water",
-            "elementType": "geometry",
-            "stylers": [
-              {
-                "color": "#c9c9c9"
-              }
-            ]
-          },
-          {
-            "featureType": "water",
-            "elementType": "labels.text.fill",
-            "stylers": [
-              {
-                "color": "#9e9e9e"
-              }
-            ]
-          }
-        ]
-      };
-
-      map = new google.maps.Map(document.getElementById('map'), mapOptions);
-
-      // Street Viewの初期化
-      const streetViewService = new google.maps.StreetViewService();
-      const panorama = new google.maps.StreetViewPanorama(document.getElementById('map'));
-
-      map.addListener('zoom_changed', () => {
-        if (map.getZoom() > 18) {
-          const center = map.getCenter();
-          streetViewService.getPanoramaByLocation(center, 50, (data, status) => {
-            if (status === google.maps.StreetViewStatus.OK) {
-              panorama.setPano(data.location.pano);
-              panorama.setPov({
-                heading: 270,
-                pitch: 0
-              });
-              panorama.setVisible(true);
-              map.setStreetView(panorama);
-            }
-          });
-        }
-      });
-
-      map.addListener('click', (e) => {
-        addInfoWindow(e.latLng);
-      });
-    }
-
-    function addInfoWindow(clickPosition) {
-      const comment = document.getElementById('comment').value;
-
-      const contentString = `
-        <div class="cloud-bubble">
-          ${comment}
+<body>
+    <div id="map"></div>
+    <canvas id="canvas"></canvas>
+    <div id="controls">
+        <input type="color" id="color-picker" value="#000000">
+        <input type="number" id="line-width" value="2" min="1" max="10">
+        <button id="startDraw">Enable Drawing</button>
+        <button id="clearCanvas">Clear Canvas</button>
+        <div id="directions-inputs">
+            <input type="text" id="start" placeholder="Enter start location">
+            <input type="text" id="end" placeholder="Enter destination">
+            <button id="getDirections">Get Directions</button>
         </div>
-      `;
+    </div>
+    <script>
+        let map;
+        let path = [];
+        let marker = null;
+        let infoWindows = [];
+        let initialSet = false;
+        let signaturePad;
+        let isDrawing = false;
+        let canDraw = false;
+        let drawingPath = [];
+        let allDrawingPaths = [];
+        let drawingContext;
+        let currentTool = 'pen';
 
-      const infoWindow = new google.maps.InfoWindow({
-        content: contentString,
-        position: clickPosition,
-      });
+        let directionsService;
+        let directionsRenderer;
 
-      google.maps.event.addListener(infoWindow, 'domready', function() {
-        const iwOuter = document.querySelector('.gm-style-iw');
-        if (iwOuter) {
-          iwOuter.parentNode.style.backgroundColor = 'transparent';
-          iwOuter.parentNode.style.border = 'none';
-          iwOuter.parentNode.style.boxShadow = 'none';
-        }
-      });
+        function initMap() {
+            const mapOptions = {
+                center: { lat: 35.6812, lng: 139.7671 },
+                zoom: 15,
+                mapTypeId: google.maps.MapTypeId.SATELLITE,
+                styles: [
+                    // Your map styles here
+                ]
+            };
 
-      infoWindow.open(map);
-      infoWindows.push({ content: contentString, position: clickPosition });
+            map = new google.maps.Map(document.getElementById('map'), mapOptions);
 
-      // ストリートビューの状態でもメモを表示
-      const panorama = map.getStreetView();
-      if (panorama.getVisible()) {
-        const marker = new google.maps.Marker({
-          position: clickPosition,
-          map: panorama,
-          title: comment
-        });
-      }
-
-      saveData(); // IndexedDBにデータを保存
-    }
-
-    if (navigator.geolocation) {
-      const geoOptions = {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 10000
-      };
-
-      navigator.geolocation.watchPosition((position) => {
-        const pos = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        };
-
-        if (!marker) {
-          marker = new google.maps.Marker({
-            position: pos,
-            map: map,
-            title: "現在地"
-          });
-        } else {
-          marker.setPosition(pos);
-        }
-
-        if (!initialSet) {
-          map.setCenter(pos);
-          initialSet = true;
-        }
-
-        if (drawing) {
-          addWatercolorMarker(pos);
-        }
-      }, (error) => {
-        let errorMessage = "GPSの取得に失敗しました: ";
-        switch(error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage += "ユーザーが位置情報の取得を許可しませんでした。";
-            break;
-          case error.POSITION_UNAVAILABLE:
-            errorMessage += "位置情報が利用できません。";
-            break;
-          case error.TIMEOUT:
-            errorMessage += "位置情報の取得がタイムアウトしました。";
-            break;
-          case error.UNKNOWN_ERROR:
-            errorMessage += "不明なエラーが発生しました。";
-            break;
-        }
-        console.error(errorMessage);
-        alert(errorMessage);
-      }, geoOptions);
-    } else {
-      alert("このブラウザでは位置情報がサポートされていません。");
-    }
-
-    document.getElementById('startButton').addEventListener('click', () => {
-      path = [];
-      drawing = true;
-    });
-
-    document.getElementById('stopButton').addEventListener('click', () => {
-      drawing = false;
-      saveData(); // IndexedDBにデータを保存
-      document.getElementById('penTools').style.display = 'block'; // 手書きメモ用のUIを表示
-    });
-
-    function startDrawing() {
-      // 実装: 手書きメモ機能の開始
-    }
-
-    function changeColor(color) {
-      // 実装: ペンの色変更
-    }
-
-    function eraseDrawing() {
-      // 実装: 手書きメモの消去
-    }
-
-    function downloadPDF() {
-      const mapDiv = document.getElementById('map');
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = mapDiv.offsetWidth;
-      canvas.height = mapDiv.offsetHeight;
-      
-      // 地図を描画
-      ctx.drawImage(mapDiv, 0, 0);
-
-      // 手書きメモを描画（例: 手書きメモがcanvasに描画されていると仮定）
-      ctx.drawImage(handwritingCanvas, 0, 0);
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('landscape');
-      pdf.addImage(imgData, 'PNG', 0, 0);
-      pdf.save('map.pdf');
-    }
-
-    function addWatercolorMarker(location) {
-      const color = document.getElementById('color').value;
-      path.push(location);
-
-      const canvas = document.createElement('canvas');
-      const size = 100;
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d');
-
-      ctx.globalCompositeOperation = 'multiply';
-
-      const gradient = ctx.createRadialGradient(size / 2, size / 2, size / 10, size / 2, size / 2, size / 2);
-      gradient.addColorStop(0, color);
-      gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.2)');
-      gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(size / 2, size / 2, size / 2, 0, 2 * Math.PI);
-      ctx.fill();
-
-      const image = canvas.toDataURL();
-
-      new google.maps.Marker({
-        position: location,
-        map: map,
-        icon: {
-          url: image,
-          scaledSize: new google.maps.Size(size, size),
-          anchor: new google.maps.Point(size / 2, size / 2),
-        },
-        clickable: false
-      });
-
-      drawWatercolorPolyline();
-      saveData(); // データを更新するたびに保存
-    }
-
-    function drawWatercolorPolyline() {
-      const color = document.getElementById('color').value;
-      const baseOpacity = 0.02;
-
-      const numLines = 50;
-      const opacityDecrease = baseOpacity / path.length;
-
-      for (let i = 1; i <= numLines; i++) {
-        for (let j = 0; j < path.length - 1; j++) {
-          const polyline = new google.maps.Polyline({
-            path: [path[j], path[j + 1]],
-            geodesic: true,
-            strokeColor: color,
-            strokeOpacity: baseOpacity - j * opacityDecrease,
-            strokeWeight: 1 + i * 0.4,
-            map: map
-          });
-        }
-      }
-    }
-
-    function saveData() {
-      const transaction = db.transaction(['paths'], 'readwrite');
-      const objectStore = transaction.objectStore('paths');
-      objectStore.clear(); // 古いデータをクリア
-      const data = {
-        path: path,
-        infoWindows: infoWindows
-      };
-      objectStore.put(data);
-    }
-
-    function loadData() {
-      const transaction = db.transaction(['paths'], 'readonly');
-      const objectStore = transaction.objectStore('paths');
-      const request = objectStore.getAll();
-
-      request.onsuccess = function(event) {
-        const result = event.target.result;
-        if (result.length > 0) {
-          const data = result[0];
-          path = data.path;
-          infoWindows = data.infoWindows;
-
-          path.forEach(location => {
-            addWatercolorMarker(location);
-          });
-
-          infoWindows.forEach(info => {
-            const infoWindow = new google.maps.InfoWindow({
-              content: info.content,
-              position: info.position
+            directionsService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer({
+                map: map,
+                polylineOptions: {
+                    strokeColor: '#0000FF', // 線の色を赤に設定
+                    strokeWeight: 6 // 線の太さを設定
+                }
             });
-            infoWindow.open(map);
-          });
+
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            canvas.addEventListener('mousedown', (event) => {
+                if (canDraw) {
+                    isDrawing = true;
+                    drawingPath = [];
+                    ctx.beginPath();
+                    const latLng = getLatLngFromEvent(event);
+                    drawingPath.push(latLng);
+                    ctx.moveTo(event.clientX, event.clientY);
+                    event.preventDefault();
+                }
+            });
+
+            canvas.addEventListener('mousemove', (event) => {
+                if (isDrawing) {
+                    const latLng = getLatLngFromEvent(event);
+                    drawingPath.push(latLng);
+                    ctx.lineTo(event.clientX, event.clientY);
+                    ctx.stroke();
+                    event.preventDefault();
+                }
+            });
+
+            canvas.addEventListener('mouseup', (event) => {
+                if (isDrawing) {
+                    isDrawing = false;
+                    ctx.closePath();
+                    allDrawingPaths.push([...drawingPath]); // 保存されたパスを保存
+                    event.preventDefault();
+                }
+            });
+
+            canvas.addEventListener('mouseleave', (event) => {
+                if (isDrawing) {
+                    isDrawing = false;
+                    ctx.closePath();
+                    allDrawingPaths.push([...drawingPath]); // 保存されたパスを保存
+                    event.preventDefault();
+                }
+            });
+
+            map.addListener('bounds_changed', () => {
+                redraw();
+            });
+
+            document.getElementById('startDraw').addEventListener('click', () => {
+                canDraw = !canDraw;
+                const button = document.getElementById('startDraw');
+                button.textContent = canDraw ? 'Disable Drawing' : 'Enable Drawing';
+                button.style.backgroundColor = canDraw ? '#FF0000' : '#00FF00'; // Change color
+                canvas.style.pointerEvents = canDraw ? 'auto' : 'none'; // Enable or disable canvas events
+            });
+
+            document.getElementById('clearCanvas').addEventListener('click', () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawingPath = [];
+                allDrawingPaths = []; // 全ての描画をクリア
+            });
+
+            document.getElementById('color-picker').addEventListener('change', (event) => {
+                ctx.strokeStyle = event.target.value;
+            });
+
+            document.getElementById('line-width').addEventListener('change', (event) => {
+                ctx.lineWidth = event.target.value;
+            });
+
+            document.getElementById('getDirections').addEventListener('click', () => {
+                calculateAndDisplayRoute();
+            });
+
+            // Initialize drawing settings
+            ctx.strokeStyle = document.getElementById('color-picker').value;
+            ctx.lineWidth = document.getElementById('line-width').value;
         }
-      };
 
-      request.onerror = function(event) {
-        console.error('Failed to load data from IndexedDB: ' + event.target.errorCode);
-      };
-    }
+        function getLatLngFromEvent(event) {
+            const scale = Math.pow(2, map.getZoom());
+            const nw = new google.maps.LatLng(
+                map.getBounds().getNorthEast().lat(),
+                map.getBounds().getSouthWest().lng()
+            );
+            const worldCoordinateNW = map.getProjection().fromLatLngToPoint(nw);
+            const pixelOffset = new google.maps.Point(
+                event.clientX / scale + worldCoordinateNW.x,
+                event.clientY / scale + worldCoordinateNW.y
+            );
+            return map.getProjection().fromPointToLatLng(pixelOffset);
+        }
 
-    // 定期的にデータを保存するためのインターバル設定（10秒ごとに保存）
-    setInterval(saveData, 10000);
+        function getEventFromLatLng(latLng) {
+            const scale = Math.pow(2, map.getZoom());
+            const nw = new google.maps.LatLng(
+                map.getBounds().getNorthEast().lat(),
+                map.getBounds().getSouthWest().lng()
+            );
+            const worldCoordinateNW = map.getProjection().fromLatLngToPoint(nw);
+            const worldCoordinate = map.getProjection().fromLatLngToPoint(latLng);
+            const pixelOffset = new google.maps.Point(
+                (worldCoordinate.x - worldCoordinateNW.x) * scale,
+                (worldCoordinate.y - worldCoordinateNW.y) * scale
+            );
+            return {
+                x: pixelOffset.x,
+                y: pixelOffset.y,
+            };
+        }
 
-  </script>
+        function redraw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            allDrawingPaths.forEach(path => {
+                if (path.length > 0) {
+                    ctx.beginPath();
+                    const start = getEventFromLatLng(path[0]);
+                    ctx.moveTo(start.x, start.y);
+
+                    for (let i = 1; i < path.length; i++) {
+                        const point = getEventFromLatLng(path[i]);
+                        ctx.lineTo(point.x, point.y);
+                    }
+                    ctx.stroke();
+                    ctx.closePath();
+                }
+            });
+        }
+
+        function calculateAndDisplayRoute() {
+            const start = document.getElementById('start').value;
+            const end = document.getElementById('end').value;
+            directionsService.route(
+                {
+                    origin: start,
+                    destination: end,
+                    travelMode: google.maps.TravelMode.DRIVING
+                },
+                (response, status) => {
+                    if (status === 'OK') {
+                        directionsRenderer.setDirections(response);
+                    } else {
+                        window.alert('Directions request failed due to ' + status);
+                    }
+                }
+            );
+        }
+
+        window.onload = initMap;
+    </script>
 </body>
 </html>
+
